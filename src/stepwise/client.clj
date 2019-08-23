@@ -4,6 +4,7 @@
   (:import (com.amazonaws.services.stepfunctions AWSStepFunctionsClient
                                                  AWSStepFunctionsClientBuilder)
            (com.amazonaws ClientConfiguration)
+           (com.amazonaws.client.builder AwsClientBuilder$EndpointConfiguration)
            (com.amazonaws.services.stepfunctions.builder StateMachine)))
 
 (set! *warn-on-reflection* true)
@@ -16,9 +17,14 @@
     (.setSocketTimeout 70000)
     (.setMaxConnections 75)))
 
+(defn endpoint-config []
+  ;; TODO the endpoint should be set in env var
+  (AwsClientBuilder$EndpointConfiguration. "http://localdocker:8083" "us-east-1"))
+
 (def stock-default-client
   (delay (-> (AWSStepFunctionsClientBuilder/standard)
              (.withClientConfiguration client-config)
+             (.withEndpointConfiguration (endpoint-config))
              (.build))))
 
 (defn set-default-client! [^AWSStepFunctionsClient client]
