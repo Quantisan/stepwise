@@ -16,17 +16,23 @@
   (walk/prewalk (sgr/renamespace-keys (constantly true) nil)
                 response))
 
-(defn ensure-state-machine [name definition]
-  (let [definition         (sgr/desugar definition)
-        activity-name->arn (activities/ensure-all (activities/get-names definition))
-        definition         (activities/resolve-kw-resources activity-name->arn definition)
-        name-ser           (arns/make-name name)
-        arn                (arns/get-state-machine-arn name-ser)
-        execution-role     (iam/ensure-execution-role)]
-    (try
-      (client/create-state-machine name-ser definition execution-role)
-      (catch StateMachineAlreadyExistsException _
-        (client/update-state-machine arn definition execution-role)))))
+(defn ensure-state-machine
+  ([name definition]
+   (ensure-state-machine name definition {}))
+  ([name definition {:keys [execution-role-arn]}]
+   (let [definition         (sgr/desugar definition)
+         activity-name->arn (activities/ensure-all (activities/get-names definition))
+         definition         (activities/resolve-kw-resources activity-name->arn definition)
+         name-ser           (arns/make-name name)
+         execution-role     (or execution-role-arn (iam/ensure-execution-role))]
+     (try
+       (client/create-state-machine name-ser definition execution-role)
+       (catch StateMachineAlreadyExistsException _
+         ;; looking up the ARN the long way to avoid call to STS and ensure
+         ;; the state-machine is there as expected
+         (-> name-ser
+             (client/get-state-machine-arn)
+             (client/update-state-machine definition execution-role)))))))
 
 (defn describe-execution [arn]
   (-> (client/describe-execution arn)
