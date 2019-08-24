@@ -171,6 +171,18 @@
         (.listStateMachines client)
         mdl/ListStateMachinesResult->map)))
 
+(defn get-state-machine-arn
+  "Lookup the state-machine from a SFN server and return the ARN"
+  ([name-ser]
+   (get-state-machine-arn (get-default-client) name-ser))
+  ([^AWSStepFunctionsClient client name-ser]
+   (->> (list-state-machines client {})
+        ;; should these namespaces be hardcoded or is there util fn?
+        (:stepwise.model/state-machines)
+        (filter #(= name-ser (:stepwise.model/name %)))
+        (first)
+        (:stepwise.model/arn))))
+
 (defn send-task-failure
   ([task-token]
    (send-task-failure task-token nil))
