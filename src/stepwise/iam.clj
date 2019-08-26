@@ -1,6 +1,7 @@
 (ns stepwise.iam
   (:require [bean-dip.core :as bd]
             [clojure.data.json :as json]
+            [stepwise.client :as client]
             [stepwise.arns :as arns])
   (:import (com.amazonaws.services.identitymanagement AmazonIdentityManagementClientBuilder
                                                       AmazonIdentityManagement)
@@ -9,7 +10,8 @@
                                                             GetRoleRequest
                                                             GetRolePolicyRequest
                                                             NoSuchEntityException)
-           (com.amazonaws.regions DefaultAwsRegionProviderChain)))
+           (com.amazonaws.regions DefaultAwsRegionProviderChain)
+           (com.amazonaws AmazonWebServiceClient)))
 
 (def assume-role-policy
   {"Version"   "2012-10-17",
@@ -69,6 +71,11 @@
                                                              ::policy-document execution-policy}))))
       (arns/get-role-arn path role-name))))
 
-(defn ensure-execution-role []
-  @execution-role-arn)
+(defn ensure-execution-role
+  ([]
+   (ensure-execution-role nil))
+  ([^AmazonWebServiceClient client]
+   (if (and client (client/localhost-client? client))
+     "arn:aws:iam::123456789012:role/service-role/StepwiseStatesExecutionRole-localhost"
+     @execution-role-arn)))
 
