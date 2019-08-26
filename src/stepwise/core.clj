@@ -10,7 +10,8 @@
             [clojure.core.async :as async]
             [clojure.tools.logging :as log]
             [clojure.walk :as walk])
-  (:import (com.amazonaws.services.stepfunctions.model StateMachineAlreadyExistsException)))
+  (:import (com.amazonaws.services.stepfunctions AWSStepFunctionsClient)
+           (com.amazonaws.services.stepfunctions.model StateMachineAlreadyExistsException)))
 
 (defn denamespace-keys [response]
   (walk/prewalk (sgr/renamespace-keys (constantly true) nil)
@@ -19,20 +20,23 @@
 (defn ensure-state-machine
   ([name definition]
    (ensure-state-machine name definition {}))
-  ([name definition {:keys [execution-role-arn]}]
+  ([name definition opt]
+   (ensure-state-machine (client/get-default-client) name definition opt))
+  ([^AWSStepFunctionsClient client name definition {:keys [execution-role-arn]}]
    (let [definition         (sgr/desugar definition)
          activity-name->arn (activities/ensure-all (activities/get-names definition))
          definition         (activities/resolve-kw-resources activity-name->arn definition)
          name-ser           (arns/make-name name)
-         execution-role     (or execution-role-arn (iam/ensure-execution-role))]
+         execution-role     (or execution-role-arn
+                                (iam/ensure-execution-role client))]
      (try
-       (client/create-state-machine name-ser definition execution-role)
+       (client/create-state-machine client name-ser definition execution-role)
        (catch StateMachineAlreadyExistsException _
          ;; looking up the ARN the long way to avoid call to STS and ensure
          ;; the state-machine is there as expected
          (-> name-ser
              (client/get-state-machine-arn)
-             (client/update-state-machine definition execution-role)))))))
+             (as-> arn (client/update-state-machine client arn definition execution-role))))))))
 
 (defn describe-execution [arn]
   (-> (client/describe-execution arn)
