@@ -17,15 +17,26 @@
     (.setSocketTimeout 70000)
     (.setMaxConnections 75)))
 
+(def stock-default-client
+  (delay (-> (AWSStepFunctionsClientBuilder/standard)
+             (.withClientConfiguration client-config)
+             (.build))))
+
 (defn endpoint-config []
   ;; TODO the endpoint should be set in env var
   (AwsClientBuilder$EndpointConfiguration. "http://localdocker:8083" "us-east-1"))
 
-(def stock-default-client
-  (delay (-> (AWSStepFunctionsClientBuilder/standard)
-             (.withClientConfiguration client-config)
-             (.withEndpointConfiguration (endpoint-config))
-             (.build))))
+(defn localhost-client []
+  (-> (AWSStepFunctionsClientBuilder/standard)
+      (.withClientConfiguration client-config)
+      (.withEndpointConfiguration (endpoint-config))
+      (.build)))
+
+(defn localhost-client? [^AWSStepFunctionsClient client]
+  ;; TODO get the client endpoint, I couldn't find a method for it yet
+  ;; though...
+  true
+  )
 
 (defn set-default-client! [^AWSStepFunctionsClient client]
   (reset! default-client client))
