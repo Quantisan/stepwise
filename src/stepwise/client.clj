@@ -3,6 +3,7 @@
             [clojure.core.async :as async])
   (:import (com.amazonaws.services.stepfunctions AWSStepFunctionsClient
                                                  AWSStepFunctionsClientBuilder)
+           (com.amazonaws AmazonWebServiceClient)
            (com.amazonaws ClientConfiguration)
            (com.amazonaws.client.builder AwsClientBuilder$EndpointConfiguration)
            (com.amazonaws.services.stepfunctions.builder StateMachine)))
@@ -32,11 +33,27 @@
       (.withEndpointConfiguration (endpoint-config))
       (.build)))
 
-(defn localhost-client? [^AWSStepFunctionsClient client]
-  ;; TODO get the client endpoint, I couldn't find a method for it yet
-  ;; though...
-  true
-  )
+(defn- get-client-endpoint
+  "Using reflection to get the configured endpoint of client object.
+
+   Reference:
+   https://github.com/richhickey/clojure-contrib/blob/master/src/main/clojure/clojure/contrib/reflect.clj#L27"
+  ^java.net.URI
+  [^AmazonWebServiceClient client]
+  (-> AmazonWebServiceClient
+      ;; https://github.com/aws/aws-sdk-java/blob/master/aws-java-sdk-core/src/main/java/com/amazonaws/AmazonWebServiceClient.java#L106
+      (.getDeclaredField (name :endpoint))
+      (doto (.setAccessible true))
+      (.get client)))
+
+(defn localhost-client?
+  [^AmazonWebServiceClient client]
+  (->> (get-client-endpoint client)
+       (.getHost)
+       ;; https://docs.aws.amazon.com/general/latest/gr/rande.html#step-functions_region
+       (re-seq #"amazonaws\.com")
+       (boolean)
+       (not)))
 
 (defn set-default-client! [^AWSStepFunctionsClient client]
   (reset! default-client client))
