@@ -25,7 +25,7 @@
 
 (defn endpoint-config []
   ;; TODO the endpoint should be set in env var
-  (AwsClientBuilder$EndpointConfiguration. "http://localdocker:8083" "us-east-1"))
+  (AwsClientBuilder$EndpointConfiguration. "http://sfn:8083" "us-east-1"))
 
 (defn localhost-client []
   (-> (AWSStepFunctionsClientBuilder/standard)
